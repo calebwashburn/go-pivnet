@@ -2,18 +2,19 @@ package download
 
 import (
 	"fmt"
-	"github.com/pivotal-cf/go-pivnet/logger"
-	"golang.org/x/sync/errgroup"
 	"io"
 	"net"
 	"net/http"
 	"os"
+	"path"
 	"strings"
 	"syscall"
-	"github.com/shirou/gopsutil/disk"
-	"github.com/onsi/gomega/gbytes"
 	"time"
-	"path"
+
+	"github.com/onsi/gomega/gbytes"
+	"github.com/pivotal-cf/go-pivnet/logger"
+	"github.com/shirou/gopsutil/disk"
+	"golang.org/x/sync/errgroup"
 )
 
 //go:generate counterfeiter -o ./fakes/ranger.go --fake-name Ranger . ranger
@@ -63,7 +64,7 @@ func (c Client) Get(
 		return fmt.Errorf("failed to construct HEAD request: %s", err)
 	}
 
-	req.Header.Add("Referer","https://go-pivnet.network.pivotal.io")
+	req.Header.Add("Referer", "https://go-pivnet.network.pivotal.io")
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
@@ -172,13 +173,12 @@ Retry:
 	var proxyReader io.Reader
 	proxyReader = c.Bar.NewProxyReader(resp.Body)
 
-
 	var timeoutReader io.Reader
 	timeoutReader = gbytes.TimeoutReader(proxyReader, timeout)
 
 	bytesWritten, err := io.Copy(fileWriter, timeoutReader)
 	if err != nil {
-		if err == io.ErrUnexpectedEOF || err == gbytes.ErrTimeout{
+		if err == io.ErrUnexpectedEOF || err == io.EOF || err == gbytes.ErrTimeout {
 			c.Logger.Debug(fmt.Sprintf("retrying %v", err))
 			c.Bar.Add(int(-1 * bytesWritten))
 			goto Retry
